@@ -1,4 +1,4 @@
-package com.iggydev.quicksignwizard
+package com.iggydev.quicksignwizard.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,6 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.iggydev.quicksignwizard.presentation.composables.GenerationScreen
 import com.iggydev.quicksignwizard.ui.theme.QuickSignWizardTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,7 +26,20 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting("Android")
+                    // TODO: basic navigation
+                    // TODO: generate digital signature
+                    // TODO: generate qr code
+                    // TODO: attach signature
+                    // TODO: scan qr code
+                    val navigationController = rememberNavController()
+                    NavHost(navController = navigationController, startDestination = Screens.GenerationScreen.route) {
+                        composable(route = Screens.GenerationScreen.route) {
+                            GenerationScreen(navigationController = navigationController)
+                        }
+                        composable(route = Screens.ListScreen.route) {
+                            GenerationScreen(navigationController = navigationController)
+                        }
+                    }
                 }
             }
         }
