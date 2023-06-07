@@ -1,6 +1,7 @@
 package com.iggydev.quicksignwizard.presentation
 
 import android.os.Bundle
+import android.security.keystore.KeyProperties
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.iggydev.quicksignwizard.presentation.composables.GenerationScreen
 import com.iggydev.quicksignwizard.ui.theme.QuickSignWizardTheme
+import java.security.KeyPairGenerator
+import java.security.KeyStore
+import java.security.KeyStore.PrivateKeyEntry
+import java.security.PrivateKey
+import java.security.cert.X509Certificate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,11 +32,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // TODO: basic navigation
-                    // TODO: generate digital signature
-                    // TODO: generate qr code
-                    // TODO: attach signature
-                    // TODO: scan qr code
                     val navigationController = rememberNavController()
                     NavHost(navController = navigationController, startDestination = Screens.GenerationScreen.route) {
                         composable(route = Screens.GenerationScreen.route) {
