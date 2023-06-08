@@ -14,67 +14,79 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import com.iggydev.quicksignwizard.common.Constants
 import java.io.File
+import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Signature
 
 class GenerationRepository {
+
+    private val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
+        load(null)
+    }
+
     /**
      * set key generation with specifications (specific algorithms, purposes and digest)
      * setting up specifications like authorizes uses of the key, what operations are authorized, with what parameters and to what date.
      * the purpose of the keys is to be used in digital signature (sign, verify)
      */
-    private fun generateDigitalSignature(): ByteArray {
-        val keyPairGenerator =
-            KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
-
-
-        val keyPairSpec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    private fun generateKeyPair(): KeyPair {
+        // get generator for keys
+        val keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+        // set specifications
+        val keyPairSpecifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             KeyGenParameterSpec.Builder(
                 Constants.alias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY or KeyProperties.PURPOSE_WRAP_KEY
-            ).run {
-                setDigests(KeyProperties.DIGEST_SHA256)
-                build()
-            }
+            )
         } else {
             KeyGenParameterSpec.Builder(
                 Constants.alias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
-            ).run {
-                setDigests(KeyProperties.DIGEST_SHA256)
-                build()
-            }
+            )
+        }.run {
+            build()
         }
+        // apply specifications
+        keyPairGenerator.initialize(keyPairSpecifications)
 
-        // use specifications
-        keyPairGenerator.initialize(keyPairSpec)
-
-        // get keys
+        // generate key pair
         val keyPair = keyPairGenerator.genKeyPair()
 
-        // get file
-        val testFile = File("C:/Users/ikupc/dev/store/glep.txt")
-        val fileContent = testFile.readBytes()
-
-        // digest it
-        val messageDigest = MessageDigest.getInstance("SHA-256")
-        val digest = messageDigest.digest(fileContent)
-
-        // embed private key in hash using elliptic curve
-        val signature = Signature.getInstance("SHA256withECDSA")
-        val digitalSignature = signature.apply {
-            initSign(keyPair.private)
-            update(digest)
-        }
-
-        // get bytes after signing
-        val digitalSignatureByteArray = digitalSignature.sign()
-
-        return digitalSignatureByteArray
+        return keyPair
     }
 
-    private fun generateQrCode() {
+    private fun generateDigitalSignature(): ByteArray {
+
+        // get key entry
+        val keyEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
+
+        // retrieve private key
+        val privateKey = keyEntry?.privateKey ?: generateKeyPair().private
+
+        // digest a data to a fixed-sized hash value
+        val testFile = File("C:/Users/ikupc/dev/store/glep.txt")
+        val fileByteArray = testFile.readBytes()
+
+        val messageDigestAlgorithm = MessageDigest.getInstance("SHA-256")
+        val digest = messageDigestAlgorithm.digest(fileByteArray)
+
+        // sign digest with a private key
+        val signatureAlgorithm = Signature.getInstance("SHA256withECDSA").apply {
+            initSign(privateKey)
+            update(digest)
+        }
+        val digitalSignature = signatureAlgorithm.sign()
+
+        return digitalSignature
+    }
+
+    private fun generateQrCodePublicKey() {
+
+    }
+
+    private fun generateQrCodeSignature() {
 
         var qrBitmap: Bitmap? = null
         var qrImageBitmap: ImageBitmap? = null
@@ -97,6 +109,12 @@ class GenerationRepository {
         QRGSaver().apply {
             save("C:/Users/ikupc/dev/store", "qr_glep", qrBitmap, QRGContents.ImageType.IMAGE_PNG)
         }
+
+
+        // TODO 1. add database
+        // TODO 2. save qr code image in a database
+        // TODO 3. test generation
+        // TODO 4. list qr codes
     }
 
 }
