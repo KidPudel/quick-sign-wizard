@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.iggydev.quicksignwizard.presentation.composables.GenerationScreen
+import com.iggydev.quicksignwizard.presentation.composables.ScannerScreen
 import com.iggydev.quicksignwizard.ui.theme.QuickSignWizardTheme
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -33,12 +34,12 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navigationController = rememberNavController()
-                    NavHost(navController = navigationController, startDestination = Screens.GenerationScreen.route) {
+                    NavHost(navController = navigationController, startDestination = Screens.ScannerScreen.route) {
                         composable(route = Screens.GenerationScreen.route) {
                             GenerationScreen(navigationController = navigationController)
                         }
-                        composable(route = Screens.ListScreen.route) {
-                            GenerationScreen(navigationController = navigationController)
+                        composable(route = Screens.ScannerScreen.route) {
+                            ScannerScreen(navigationController = navigationController)
                         }
                     }
                 }
