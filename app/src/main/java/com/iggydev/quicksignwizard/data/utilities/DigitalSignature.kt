@@ -20,6 +20,7 @@ import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Signature
+import java.security.interfaces.ECPublicKey
 
 class DigitalSignature {
 
@@ -93,7 +94,6 @@ class DigitalSignature {
         // get public key
         val publicKey = keyPairEntry?.certificate?.publicKey ?: generateKeyPair().public
 
-
         // set a generator
         val qrgEncoder = QRGEncoder(publicKey.encoded.toString(), QRGContents.Type.TEXT, dimension)
             .apply {
@@ -132,12 +132,6 @@ class DigitalSignature {
         }
 
         return qrImageBitmap
-
-
-        // TODO 1. add database
-        // TODO 2. save qr code image in a database
-        // TODO 3. test generation
-        // TODO 4. list qr codes
     }
 
 }

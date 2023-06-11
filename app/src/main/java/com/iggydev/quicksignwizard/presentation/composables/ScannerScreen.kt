@@ -3,24 +3,19 @@ package com.iggydev.quicksignwizard.presentation.composables
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.hardware.camera2.CameraMetadata.LENS_FACING_BACK
 import android.provider.Settings
 import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -28,26 +23,38 @@ import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.iggydev.quicksignwizard.data.utilities.QrCodeAnalyzer
 import com.iggydev.quicksignwizard.presentation.Screens
-import org.w3c.dom.Text
+import kotlinx.coroutines.launch
+import java.math.BigInteger
+import java.security.AlgorithmParameters
+import java.security.KeyFactory
+import java.security.PublicKey
+import java.security.Signature
+import java.security.interfaces.ECPrivateKey
+import java.security.interfaces.ECPublicKey
+import java.security.spec.ECGenParameterSpec
+import java.security.spec.ECParameterSpec
+import java.security.spec.ECPrivateKeySpec
+import java.security.spec.X509EncodedKeySpec
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +75,10 @@ fun ScannerScreen(navigationController: NavController) {
         )
     }
 
+    var publicKey by remember {
+        mutableStateOf<ECPublicKey?>(null)
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { permissionGranted ->
@@ -78,20 +89,28 @@ fun ScannerScreen(navigationController: NavController) {
     val goToSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
         onResult = {
-            it.resultCode
         }
     )
-
 
     LaunchedEffect(key1 = true) {
         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    Scaffold(bottomBar = {
-        BottomAppBar(contentPadding = PaddingValues(0.dp)) {
-            WizardBottomBar(navigationController = navigationController)
+    val scannerCoroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember {
+        SnackbarHostState()
+    }
+
+    Scaffold(
+        bottomBar = {
+            BottomAppBar(contentPadding = PaddingValues(0.dp)) {
+                WizardBottomBar(navigationController = navigationController)
+            }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
-    }) {
+    ) {
 
         Column(
             modifier = Modifier
@@ -122,7 +141,31 @@ fun ScannerScreen(navigationController: NavController) {
                                 setAnalyzer(
                                     ContextCompat.getMainExecutor(contextView),
                                     QrCodeAnalyzer { qrCodeData ->
-                                        TODO(reason = "handle anayzed qr code")
+                                        // meaning, we should only scan for public key
+                                        if (publicKey == null) {
+
+                                            val curveName = "secp356r1"
+                                            val bigInteger = BigInteger(1, qrCodeData)
+                                            publicKey = getPublicKeyFromRaw(bigInteger, curveName)
+                                            println(publicKey ?: "public key is null")
+
+                                        } else {
+                                            println("second qr code")
+                                            // if we already scanned public key (have it), scan second qr code
+                                            val verification =
+                                                Signature.getInstance("SHA256withECDSA")
+                                                    .apply {
+                                                        initVerify(publicKey)
+                                                        update("My name is kidcudi".toByteArray())
+                                                    }
+                                            val valid = verification.verify(qrCodeData)
+                                            scannerCoroutineScope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    message = "The signature is ${if (valid) "valid" else "in"}",
+                                                    actionLabel = "OK"
+                                                )
+                                            }
+                                        }
                                     })
                             }
 
@@ -130,7 +173,12 @@ fun ScannerScreen(navigationController: NavController) {
                             // the state of lifecycle determines should camera open, started, stopped and closed
                             // binds lifecycle to receive data (for preview and for analyzer)
                             cameraProviderFuture.get()
-                                .bindToLifecycle(lifecycleOwner, selector, preview, imageAnalyzer)
+                                .bindToLifecycle(
+                                    lifecycleOwner,
+                                    selector,
+                                    preview,
+                                    imageAnalyzer
+                                )
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -172,4 +220,18 @@ fun ScannerScreen(navigationController: NavController) {
 
         }
     }
+}
+
+
+fun getPublicKeyFromRaw(key: BigInteger, curveName: String): ECPublicKey {
+    val ecParameterSpec = getParametersForCurve(curveName)
+    val publicKeySpec = ECPrivateKeySpec(key, ecParameterSpec)
+    val keyFactory = KeyFactory.getInstance("EC")
+    return keyFactory.generatePublic(publicKeySpec) as ECPublicKey
+}
+
+fun getParametersForCurve(curveName: String): ECParameterSpec {
+    val params = AlgorithmParameters.getInstance("EC")
+    params.init(ECGenParameterSpec(curveName))
+    return params.getParameterSpec(ECParameterSpec::class.java)
 }

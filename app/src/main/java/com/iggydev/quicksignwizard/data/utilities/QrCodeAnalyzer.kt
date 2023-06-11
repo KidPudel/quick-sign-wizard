@@ -13,7 +13,7 @@ import java.lang.Exception
 import java.nio.ByteBuffer
 
 class QrCodeAnalyzer(
-    val onQrCodeScanned: (String) -> Unit
+    val onQrCodeScanned: (ByteArray) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     private val supportedFormats = listOf(
@@ -44,17 +44,19 @@ class QrCodeAnalyzer(
             try {
                 // content of the image (frames)
                 val result = MultiFormatReader().apply {
-                    setHints(mapOf(
-                        DecodeHintType.POSSIBLE_FORMATS to arrayListOf(
-                            BarcodeFormat.QR_CODE
+                    setHints(
+                        mapOf(
+                            DecodeHintType.POSSIBLE_FORMATS to arrayListOf(
+                                BarcodeFormat.QR_CODE
+                            )
                         )
-                    ))
+                    )
                 }.decode(binaryBitmap)
 
                 // pass data representation of qr code
-                onQrCodeScanned(result.text)
-
-            } catch(e: Exception) {
+                onQrCodeScanned(result.rawBytes)
+                println("qr code found ${result.text}")
+            } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 // close image that is analyzed
