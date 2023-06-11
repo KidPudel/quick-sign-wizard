@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import com.iggydev.quicksignwizard.common.Constants
 import java.io.File
 import java.security.KeyPair
@@ -33,7 +34,8 @@ class DigitalSignature {
      */
     private fun generateKeyPair(): KeyPair {
         // get generator for keys
-        val keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+        val keyPairGenerator =
+            KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
         // set specifications
         val keyPairSpecifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             KeyGenParameterSpec.Builder(
@@ -46,6 +48,8 @@ class DigitalSignature {
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
             )
         }.run {
+            // digest set with which the keys can be used
+            setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
             build()
         }
         // apply specifications
@@ -57,8 +61,7 @@ class DigitalSignature {
         return keyPair
     }
 
-    private fun generateDigitalSignature(): ByteArray {
-
+    private fun generateDigitalSignature(data: ByteArray): ByteArray {
         // get key entry
         val keyEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
 
@@ -66,11 +69,8 @@ class DigitalSignature {
         val privateKey = keyEntry?.privateKey ?: generateKeyPair().private
 
         // digest a data to a fixed-sized hash value
-        val testFile = File("C:/Users/ikupc/dev/store/glep.txt")
-        val fileByteArray = testFile.readBytes()
-
         val messageDigestAlgorithm = MessageDigest.getInstance("SHA-256")
-        val digest = messageDigestAlgorithm.digest(fileByteArray)
+        val digest = messageDigestAlgorithm.digest(data)
 
         // sign digest with a private key
         val signatureAlgorithm = Signature.getInstance("SHA256withECDSA").apply {
@@ -82,23 +82,26 @@ class DigitalSignature {
         return digitalSignature
     }
 
-    private fun generateQrCodePublicKey(): ImageBitmap {
+    fun generateQrCodePublicKey(dimension: Int): ImageBitmap? {
+
+        // generate an qr code bitmap and nest
+        val qrBitmap: Bitmap?
+        var qrImageBitmap: ImageBitmap? = null
+
         val keyPairEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
 
         // get public key
         val publicKey = keyPairEntry?.certificate?.publicKey ?: generateKeyPair().public
 
+
         // set a generator
-        val qrgEncoder = QRGEncoder(publicKey.encoded.toString(), QRGContents.Type.TEXT, 255)
+        val qrgEncoder = QRGEncoder(publicKey.encoded.toString(), QRGContents.Type.TEXT, dimension)
+            .apply {
+                colorBlack = Color.White.toArgb()
+                colorWhite = Color.Black.toArgb()
+            }
 
 
-
-        // generate an qr code bitmap and nest
-        var qrBitmap: Bitmap? = null
-        var qrImageBitmap: ImageBitmap? = null
-
-        qrgEncoder.colorBlack = Color.Red.toArgb()
-        qrgEncoder.colorWhite = Color.Blue.toArgb()
         try {
             qrBitmap = qrgEncoder.bitmap
             qrImageBitmap = qrBitmap?.asImageBitmap()
@@ -106,23 +109,21 @@ class DigitalSignature {
             Log.v("ERROR", e.message ?: "nothing to show")
         }
 
-        QRGSaver().save("C:/Users/ikupc/dev/store", "qr_public_glep", qrBitmap, QRGContents.ImageType.IMAGE_PNG)
-
-        TODO(reason = "generate qr code with public key")
+        return qrImageBitmap
     }
 
-    private fun generateQrCodeSignature() {
+    fun generateQrCodeSignature(dimension: Int, data: ByteArray): ImageBitmap? {
 
-        var qrBitmap: Bitmap? = null
+        val qrBitmap: Bitmap?
         var qrImageBitmap: ImageBitmap? = null
 
-        val digitalSignature = generateDigitalSignature()
+        val digitalSignature = generateDigitalSignature(data = data)
 
 
         // generate
-        val qrgEncoder = QRGEncoder(digitalSignature.toString(), null, QRGContents.Type.TEXT, 255)
-        qrgEncoder.colorBlack = Color.Red.toArgb()
-        qrgEncoder.colorWhite = Color.Blue.toArgb()
+        val qrgEncoder = QRGEncoder(digitalSignature.toString(), null, QRGContents.Type.TEXT, dimension)
+        qrgEncoder.colorBlack = Color.White.toArgb()
+        qrgEncoder.colorWhite = Color.Black.toArgb()
         try {
             qrBitmap = qrgEncoder.bitmap
             qrImageBitmap = qrBitmap.asImageBitmap()
@@ -130,10 +131,7 @@ class DigitalSignature {
             Log.v("ERROR", e.message ?: "nothing to show")
         }
 
-        // save
-        QRGSaver().apply {
-            save("C:/Users/ikupc/dev/store", "qr_glep", qrBitmap, QRGContents.ImageType.IMAGE_PNG)
-        }
+        return qrImageBitmap
 
 
         // TODO 1. add database

@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navigationController = rememberNavController()
-                    NavHost(navController = navigationController, startDestination = Screens.ScannerScreen.route) {
+                    NavHost(navController = navigationController, startDestination = Screens.GenerationScreen.route) {
                         composable(route = Screens.GenerationScreen.route) {
                             GenerationScreen(navigationController = navigationController)
                         }
