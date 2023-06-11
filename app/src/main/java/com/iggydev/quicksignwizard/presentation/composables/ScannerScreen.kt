@@ -47,6 +47,8 @@ import kotlinx.coroutines.launch
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
+import java.security.KeyStore
+import java.security.KeyStore.PrivateKeyEntry
 import java.security.PublicKey
 import java.security.Signature
 import java.security.interfaces.ECPrivateKey
@@ -75,8 +77,17 @@ fun ScannerScreen(navigationController: NavController) {
         )
     }
 
+    val keyStore by remember {
+        mutableStateOf(KeyStore.getInstance("AndroidKeyStore").apply { load(null) })
+    }
+
+
     var publicKey by remember {
         mutableStateOf<ECPublicKey?>(null)
+    }
+
+    var scannedData by remember {
+        mutableStateOf<ByteArray?>(null)
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -141,31 +152,23 @@ fun ScannerScreen(navigationController: NavController) {
                                 setAnalyzer(
                                     ContextCompat.getMainExecutor(contextView),
                                     QrCodeAnalyzer { qrCodeData ->
-                                        // meaning, we should only scan for public key
-                                        if (publicKey == null) {
+                                        keyStore.setKeyEntry("bubblegum", qrCodeData, null)
 
-                                            val curveName = "secp356r1"
-                                            val bigInteger = BigInteger(1, qrCodeData)
-                                            publicKey = getPublicKeyFromRaw(bigInteger, curveName)
-                                            println(publicKey ?: "public key is null")
+                                        val keyEntry = keyStore.getEntry("bubblegum", null) as PrivateKeyEntry
 
-                                        } else {
-                                            println("second qr code")
-                                            // if we already scanned public key (have it), scan second qr code
-                                            val verification =
-                                                Signature.getInstance("SHA256withECDSA")
-                                                    .apply {
-                                                        initVerify(publicKey)
-                                                        update("My name is kidcudi".toByteArray())
-                                                    }
-                                            val valid = verification.verify(qrCodeData)
+                                        val publicKeyFromEntry = keyEntry.certificate.publicKey
+
+                                        if (!scannedData.contentEquals(qrCodeData)) {
+                                            scannedData = qrCodeData
                                             scannerCoroutineScope.launch {
                                                 snackbarHostState.showSnackbar(
-                                                    message = "The signature is ${if (valid) "valid" else "in"}",
+                                                    message = publicKeyFromEntry.toString(),
                                                     actionLabel = "OK"
                                                 )
                                             }
+
                                         }
+                                        // meaning, we should only scan for public key
                                     })
                             }
 
