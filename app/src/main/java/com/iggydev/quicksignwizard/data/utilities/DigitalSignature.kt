@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.util.Log
 import androidmads.library.qrgenearator.QRGContents
 import androidmads.library.qrgenearator.QRGEncoder
@@ -92,10 +93,18 @@ class DigitalSignature {
         val keyPairEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
 
         // get public key
-        val publicKey = keyPairEntry?.certificate?.publicKey ?: generateKeyPair().public
-
+        val publicKey = (keyPairEntry?.certificate?.publicKey ?: generateKeyPair().public)
         // set a generator
-        val qrgEncoder = QRGEncoder(publicKey.encoded.toString(), QRGContents.Type.TEXT, dimension)
+
+        // THX to PRCreeper
+        // convert public key for transmission, encoded with X.509 and then encoded to String
+        val encodedPublicKey = publicKey.encoded.let { Base64.encodeToString(it, Base64.NO_WRAP) }
+
+        val qrgEncoder = QRGEncoder(
+            encodedPublicKey,
+            QRGContents.Type.TEXT,
+            dimension
+        )
             .apply {
                 colorBlack = Color.White.toArgb()
                 colorWhite = Color.Black.toArgb()
@@ -119,9 +128,19 @@ class DigitalSignature {
 
         val digitalSignature = generateDigitalSignature(data = data)
 
+        // encode for transmission with X.509 with string
+        val encodedDigitalSignature =
+            digitalSignature.let { Base64.encodeToString(it, Base64.NO_WRAP) }
 
-        // generate
-        val qrgEncoder = QRGEncoder(digitalSignature.toString(), null, QRGContents.Type.TEXT, dimension)
+
+        // generate qr code with signature encoded
+        val qrgEncoder =
+            QRGEncoder(
+                encodedDigitalSignature,
+                null,
+                QRGContents.Type.TEXT,
+                dimension
+            )
         qrgEncoder.colorBlack = Color.White.toArgb()
         qrgEncoder.colorWhite = Color.Black.toArgb()
         try {

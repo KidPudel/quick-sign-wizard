@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,6 +46,8 @@ import androidx.navigation.NavController
 import com.iggydev.quicksignwizard.data.utilities.QrCodeAnalyzer
 import com.iggydev.quicksignwizard.presentation.Screens
 import kotlinx.coroutines.launch
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
@@ -51,6 +55,7 @@ import java.security.KeyStore
 import java.security.KeyStore.PrivateKeyEntry
 import java.security.PublicKey
 import java.security.Signature
+import java.security.cert.CertificateFactory
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
@@ -83,7 +88,7 @@ fun ScannerScreen(navigationController: NavController) {
 
 
     var publicKey by remember {
-        mutableStateOf<ECPublicKey?>(null)
+        mutableStateOf<PublicKey?>(null)
     }
 
     var scannedData by remember {
@@ -152,22 +157,34 @@ fun ScannerScreen(navigationController: NavController) {
                                 setAnalyzer(
                                     ContextCompat.getMainExecutor(contextView),
                                     QrCodeAnalyzer { qrCodeData ->
-                                        keyStore.setKeyEntry("bubblegum", qrCodeData, null)
 
-                                        val keyEntry = keyStore.getEntry("bubblegum", null) as PrivateKeyEntry
+                                        // TODO !!!!! instead of public key get certificate !!!!!
 
-                                        val publicKeyFromEntry = keyEntry.certificate.publicKey
+                                        // decode data
+                                        val decodedData = Base64.decode(qrCodeData, Base64.NO_WRAP)
 
-                                        if (!scannedData.contentEquals(qrCodeData)) {
-                                            scannedData = qrCodeData
+                                        // decode certificate
+                                        val certificateFactory = CertificateFactory.getInstance("X.509")
+                                        val inputStream = ByteArrayInputStream(decodedData)
+                                        val certificate = certificateFactory.generateCertificate(inputStream)
+
+
+                                        /*val keyEntry =
+                                            keyStore.getEntry("bubblegum", null) as? PrivateKeyEntry
+
+                                        val publicKeyFromEntry = keyEntry?.certificate?.publicKey
+
+                                        if (!scannedData.contentEquals(binaryQrData)) {
+                                            scannedData = binaryQrData
                                             scannerCoroutineScope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     message = publicKeyFromEntry.toString(),
                                                     actionLabel = "OK"
                                                 )
                                             }
+                                        }*/
 
-                                        }
+
                                         // meaning, we should only scan for public key
                                     })
                             }
