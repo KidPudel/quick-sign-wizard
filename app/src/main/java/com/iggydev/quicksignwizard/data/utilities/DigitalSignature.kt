@@ -8,20 +8,15 @@ import android.util.Base64
 import android.util.Log
 import androidmads.library.qrgenearator.QRGContents
 import androidmads.library.qrgenearator.QRGEncoder
-import androidmads.library.qrgenearator.QRGSaver
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import com.iggydev.quicksignwizard.common.Constants
-import java.io.File
-import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.Signature
-import java.security.interfaces.ECPublicKey
 
 class DigitalSignature {
 
@@ -34,7 +29,7 @@ class DigitalSignature {
      * setting up specifications like authorizes uses of the key, what operations are authorized, with what parameters and to what date.
      * the purpose of the keys is to be used in digital signature (sign, verify)
      */
-    private fun generateKeyPair(): KeyPair {
+    private fun generateKeyPair() {
         // get generator for keys
         val keyPairGenerator =
             KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
@@ -58,17 +53,20 @@ class DigitalSignature {
         keyPairGenerator.initialize(keyPairSpecifications)
 
         // generate key pair
-        val keyPair = keyPairGenerator.genKeyPair()
-
-        return keyPair
+        keyPairGenerator.genKeyPair()
     }
 
     private fun generateDigitalSignature(data: ByteArray): ByteArray {
+
+        if (!keyStore.isKeyEntry(Constants.alias)) {
+            generateKeyPair()
+        }
+
         // get key entry
         val keyEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
 
         // retrieve private key
-        val privateKey = keyEntry?.privateKey ?: generateKeyPair().private
+        val privateKey = keyEntry?.privateKey
 
         // digest a data to a fixed-sized hash value
         val messageDigestAlgorithm = MessageDigest.getInstance("SHA-256")
@@ -84,24 +82,27 @@ class DigitalSignature {
         return digitalSignature
     }
 
-    fun generateQrCodePublicKey(dimension: Int): ImageBitmap? {
+    fun generateQrCodeCertificate(dimension: Int): ImageBitmap? {
 
         // generate an qr code bitmap and nest
         val qrBitmap: Bitmap?
         var qrImageBitmap: ImageBitmap? = null
 
-        val keyPairEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
 
-        // get public key
-        val publicKey = (keyPairEntry?.certificate?.publicKey ?: generateKeyPair().public)
-        // set a generator
+        if (!keyStore.isKeyEntry(Constants.alias)) {
+            generateKeyPair()
+        }
+
+
+        // get certificate key
+        val certificate = keyStore.getCertificate(Constants.alias)
 
         // THX to PRCreeper
-        // convert public key for transmission, encoded with X.509 and then encoded to String
-        val encodedPublicKey = publicKey.encoded.let { Base64.encodeToString(it, Base64.NO_WRAP) }
+        // convert certificate for transmission, encoded with X.509 and then encoded to String
+        val encodedCertificate = certificate.encoded.let { Base64.encodeToString(it, Base64.NO_CLOSE) }
 
         val qrgEncoder = QRGEncoder(
-            encodedPublicKey,
+            encodedCertificate,
             QRGContents.Type.TEXT,
             dimension
         )
@@ -109,7 +110,6 @@ class DigitalSignature {
                 colorBlack = Color.White.toArgb()
                 colorWhite = Color.Black.toArgb()
             }
-
 
         try {
             qrBitmap = qrgEncoder.bitmap

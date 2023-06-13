@@ -53,11 +53,11 @@ fun GenerationScreen(navigationController: NavController) {
     }
 
     val width = LocalDensity.current.run {
-        LocalConfiguration.current.screenWidthDp.dp.toPx()
+        LocalConfiguration.current.screenWidthDp.dp.toPx() / 1.2f
     }
 
     val height = LocalDensity.current.run {
-        LocalConfiguration.current.screenHeightDp.dp.toPx()
+        LocalConfiguration.current.screenHeightDp.dp.toPx() / 1.2f
     }
 
     val qrCodeDimension = width.coerceAtMost(height).toInt()

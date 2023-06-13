@@ -51,6 +51,7 @@ class QrCodeAnalyzer(
                     ))
                 }.decode(binaryBitmap)
 
+                println("binary qr code ${result.text}")
                 // pass data representation of qr code
                 onQrCodeScanned(result.text)
 

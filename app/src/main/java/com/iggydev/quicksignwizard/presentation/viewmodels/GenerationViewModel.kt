@@ -16,7 +16,7 @@ class GenerationViewModel : ViewModel() {
 
     fun generateQrCodeWithPublicKey(dimension: Int) {
         _state.update {
-            it.copy(qrCodeImageWithPublicKey = digitalSignature.generateQrCodePublicKey(dimension = dimension))
+            it.copy(qrCodeImageWithPublicKey = digitalSignature.generateQrCodeCertificate(dimension = dimension))
         }
     }
 

@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
-import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,23 +44,18 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.iggydev.quicksignwizard.data.utilities.QrCodeAnalyzer
 import com.iggydev.quicksignwizard.presentation.Screens
-import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
-import java.io.InputStream
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
 import java.security.KeyStore
-import java.security.KeyStore.PrivateKeyEntry
 import java.security.PublicKey
-import java.security.Signature
 import java.security.cert.CertificateFactory
-import java.security.interfaces.ECPrivateKey
+import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.ECParameterSpec
 import java.security.spec.ECPrivateKeySpec
-import java.security.spec.X509EncodedKeySpec
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -157,35 +151,16 @@ fun ScannerScreen(navigationController: NavController) {
                                 setAnalyzer(
                                     ContextCompat.getMainExecutor(contextView),
                                     QrCodeAnalyzer { qrCodeData ->
-
-                                        // TODO !!!!! instead of public key get certificate !!!!!
-
                                         // decode data
-                                        val decodedData = Base64.decode(qrCodeData, Base64.NO_WRAP)
+                                        val byteArrayData =
+                                            Base64.decode(qrCodeData, Base64.NO_CLOSE)
 
-                                        // decode certificate
-                                        val certificateFactory = CertificateFactory.getInstance("X.509")
-                                        val inputStream = ByteArrayInputStream(decodedData)
-                                        val certificate = certificateFactory.generateCertificate(inputStream)
+                                        val certificateFactory =
+                                            CertificateFactory.getInstance("X.509")
+                                        val inputStream = ByteArrayInputStream(byteArrayData)
+                                        val certificate =
+                                            certificateFactory.generateCertificate(inputStream)
 
-
-                                        /*val keyEntry =
-                                            keyStore.getEntry("bubblegum", null) as? PrivateKeyEntry
-
-                                        val publicKeyFromEntry = keyEntry?.certificate?.publicKey
-
-                                        if (!scannedData.contentEquals(binaryQrData)) {
-                                            scannedData = binaryQrData
-                                            scannerCoroutineScope.launch {
-                                                snackbarHostState.showSnackbar(
-                                                    message = publicKeyFromEntry.toString(),
-                                                    actionLabel = "OK"
-                                                )
-                                            }
-                                        }*/
-
-
-                                        // meaning, we should only scan for public key
                                     })
                             }
 
@@ -202,7 +177,6 @@ fun ScannerScreen(navigationController: NavController) {
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
-
                         previewView
                     },
                     modifier = Modifier.fillMaxSize()
