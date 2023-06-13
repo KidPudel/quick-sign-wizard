@@ -36,12 +36,12 @@ class DigitalSignature {
         // set specifications
         val keyPairSpecifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             KeyGenParameterSpec.Builder(
-                Constants.alias,
+                Constants.signerAlias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY or KeyProperties.PURPOSE_WRAP_KEY
             )
         } else {
             KeyGenParameterSpec.Builder(
-                Constants.alias,
+                Constants.signerAlias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
             )
         }.run {
@@ -58,12 +58,12 @@ class DigitalSignature {
 
     private fun generateDigitalSignature(data: ByteArray): ByteArray {
 
-        if (!keyStore.isKeyEntry(Constants.alias)) {
+        if (!keyStore.isKeyEntry(Constants.signerAlias)) {
             generateKeyPair()
         }
 
         // get key entry
-        val keyEntry = keyStore.getEntry(Constants.alias, null) as? KeyStore.PrivateKeyEntry
+        val keyEntry = keyStore.getEntry(Constants.signerAlias, null) as? KeyStore.PrivateKeyEntry
 
         // retrieve private key
         val privateKey = keyEntry?.privateKey
@@ -73,11 +73,11 @@ class DigitalSignature {
         val digest = messageDigestAlgorithm.digest(data)
 
         // sign digest with a private key
-        val signatureAlgorithm = Signature.getInstance("SHA256withECDSA").apply {
+        val signature = Signature.getInstance("SHA256withECDSA").apply {
             initSign(privateKey)
             update(digest)
         }
-        val digitalSignature = signatureAlgorithm.sign()
+        val digitalSignature = signature.sign()
 
         return digitalSignature
     }
@@ -89,27 +89,27 @@ class DigitalSignature {
         var qrImageBitmap: ImageBitmap? = null
 
 
-        if (!keyStore.isKeyEntry(Constants.alias)) {
+        if (!keyStore.isKeyEntry(Constants.signerAlias)) {
             generateKeyPair()
         }
 
 
         // get certificate key
-        val certificate = keyStore.getCertificate(Constants.alias)
+        val certificate = keyStore.getCertificate(Constants.signerAlias)
 
         // THX to PRCreeper
         // convert certificate for transmission, encoded with X.509 and then encoded to String
-        val encodedCertificate = certificate.encoded.let { Base64.encodeToString(it, Base64.NO_CLOSE) }
+        val encodedCertificate =
+            certificate.encoded.let { Base64.encodeToString(it, Base64.NO_WRAP) }
 
         val qrgEncoder = QRGEncoder(
             encodedCertificate,
             QRGContents.Type.TEXT,
             dimension
-        )
-            .apply {
-                colorBlack = Color.White.toArgb()
-                colorWhite = Color.Black.toArgb()
-            }
+        ).apply {
+            colorBlack = Color.White.toArgb()
+            colorWhite = Color.Black.toArgb()
+        }
 
         try {
             qrBitmap = qrgEncoder.bitmap

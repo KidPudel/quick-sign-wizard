@@ -1,5 +1,6 @@
 package com.iggydev.quicksignwizard.common
 
 object Constants {
-    val alias = "finn_and_jake"
+    const val signerAlias = "finn_and_jake"
+    const val recipientAlias = "bubblegum"
 }

@@ -1,5 +1,9 @@
 package com.iggydev.quicksignwizard.presentation.composables
 
+import android.content.ContentResolver
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,14 +30,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.iggydev.quicksignwizard.presentation.viewmodels.GenerationViewModel
 import org.koin.androidx.compose.getViewModel
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +67,32 @@ fun GenerationScreen(navigationController: NavController) {
         LocalConfiguration.current.screenHeightDp.dp.toPx() / 1.2f
     }
 
+    var file by remember {
+        mutableStateOf<ByteArray?>(null)
+    }
+
+    var isGenerationEnabled by remember {
+        mutableStateOf(false)
+    }
+
+    val context = LocalContext.current
+
+    val chooseFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { receivedPath ->
+            println(receivedPath?.path)
+
+            val contentResolver = context.contentResolver
+
+            val fileInputStream = contentResolver.openInputStream(receivedPath!!)
+
+            // read and close (scoped)
+            file = fileInputStream?.use { it.readBytes() }
+
+            isGenerationEnabled = true
+        }
+    )
+
     val qrCodeDimension = width.coerceAtMost(height).toInt()
 
     Scaffold(modifier = Modifier.fillMaxSize(), bottomBar = {
@@ -81,6 +114,17 @@ fun GenerationScreen(navigationController: NavController) {
                 fontWeight = FontWeight.Bold
             )
             if (!hasQrCodeGenerated) {
+                Button(
+                    onClick = {
+                        chooseFileLauncher.launch("text/plain")
+                    },
+                    shape = RoundedCornerShape(5.dp),
+                    modifier = Modifier
+                        .height(50.dp),
+                    border = BorderStroke(width = 5.dp, color = Color.Black)
+                ) {
+                    Text(text = "choose a file")
+                }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
@@ -89,6 +133,7 @@ fun GenerationScreen(navigationController: NavController) {
                                 generationViewModel.state.value.qrCodeImageWithPublicKey
                             hasQrCodeGenerated = true
                         },
+                        enabled = isGenerationEnabled,
                         shape = RoundedCornerShape(5.dp),
                         modifier = Modifier
                             .height(50.dp)
@@ -102,12 +147,13 @@ fun GenerationScreen(navigationController: NavController) {
                         onClick = {
                             generationViewModel.generateQrCodeWithSignature(
                                 dimension = qrCodeDimension,
-                                data = "My name is kidcudi".toByteArray()
+                                data = file!!
                             )
                             signatureQrCode =
                                 generationViewModel.state.value.qrCodeImageWithSignature
                             hasQrCodeGenerated = true
                         },
+                        enabled = isGenerationEnabled,
                         shape = RoundedCornerShape(5.dp),
                         modifier = Modifier
                             .height(50.dp)

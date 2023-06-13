@@ -32,7 +32,7 @@ class DigitalSignatureTest {
             )
         } else {
             KeyGenParameterSpec.Builder(
-                Constants.alias,
+                Constants.signerAlias,
                 KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
             )
         }.run {

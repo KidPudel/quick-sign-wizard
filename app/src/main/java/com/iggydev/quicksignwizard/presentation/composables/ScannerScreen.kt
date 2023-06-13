@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,12 +45,15 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.iggydev.quicksignwizard.data.utilities.QrCodeAnalyzer
 import com.iggydev.quicksignwizard.presentation.Screens
+import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
 import java.security.KeyStore
+import java.security.MessageDigest
 import java.security.PublicKey
+import java.security.Signature
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
@@ -81,18 +85,34 @@ fun ScannerScreen(navigationController: NavController) {
     }
 
 
-    var publicKey by remember {
-        mutableStateOf<PublicKey?>(null)
-    }
-
-    var scannedData by remember {
+    var file by remember {
         mutableStateOf<ByteArray?>(null)
     }
+
+    val scannedData = remember {
+        mutableStateListOf<String>()
+    }
+
+    val chooseFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { receivedPath ->
+            println(receivedPath?.path)
+
+            val contentResolver = context.contentResolver
+
+            val fileInputStream = contentResolver.openInputStream(receivedPath!!)
+
+            // read and close (scoped)
+            file = fileInputStream?.use { it.readBytes() }
+        }
+    )
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { permissionGranted ->
             hasCameraPermission = permissionGranted
+            // next launch
+            chooseFileLauncher.launch("text/plain")
         }
     )
 
@@ -153,14 +173,54 @@ fun ScannerScreen(navigationController: NavController) {
                                     QrCodeAnalyzer { qrCodeData ->
                                         // decode data
                                         val byteArrayData =
-                                            Base64.decode(qrCodeData, Base64.NO_CLOSE)
+                                            Base64.decode(qrCodeData, Base64.NO_WRAP)
 
-                                        val certificateFactory =
-                                            CertificateFactory.getInstance("X.509")
-                                        val inputStream = ByteArrayInputStream(byteArrayData)
-                                        val certificate =
-                                            certificateFactory.generateCertificate(inputStream)
+                                        println("scanned data: ${scannedData.joinToString(", ")}")
+                                        println("current data: $qrCodeData")
+                                        if (!scannedData.contains(qrCodeData)) {
+                                            if (!keyStore.isCertificateEntry("bubblegum1.0.1")) {
+                                                val certificateFactory =
+                                                    CertificateFactory.getInstance("X.509")
+                                                val inputStream =
+                                                    ByteArrayInputStream(byteArrayData)
+                                                val certificate =
+                                                    certificateFactory.generateCertificate(
+                                                        inputStream
+                                                    )
 
+                                                keyStore.setCertificateEntry(
+                                                    "bubblegum1.0.1",
+                                                    certificate
+                                                )
+                                                scannerCoroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(message = "new qr code detected")
+                                                }
+                                            } else {
+                                                val publicKey =
+                                                    keyStore.getCertificate("bubblegum1.0.1").publicKey
+
+                                                // calculate hash value
+                                                val digest = MessageDigest.getInstance("SHA-256")
+                                                    .run { digest(file) }
+
+                                                val verification =
+                                                    Signature.getInstance("SHA256withECDSA").apply {
+                                                        initVerify(publicKey)
+                                                        update(digest)
+                                                    }
+
+                                                // compare hash values
+                                                val isValid = verification.verify(byteArrayData)
+
+                                                scannerCoroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(message = if (isValid) "data integrity verified" else "possibility of corrupted data")
+                                                }
+
+                                                // after usage of public key, delete it (temporary)
+                                                keyStore.deleteEntry("bubblegum1.0.1")
+                                            }
+                                            scannedData.add(qrCodeData)
+                                        }
                                     })
                             }
 
