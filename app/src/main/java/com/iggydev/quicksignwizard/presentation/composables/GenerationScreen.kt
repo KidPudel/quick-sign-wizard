@@ -6,9 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,25 +109,29 @@ fun GenerationScreen(navigationController: NavController) {
                 .fillMaxSize()
                 .padding(it)
         ) {
-            Text(
-                text = "Generate a QR code with a public key",
-                fontSize = 30.sp,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
-            )
+
+
             if (!hasQrCodeGenerated) {
-                Button(
-                    onClick = {
-                        chooseFileLauncher.launch("text/plain")
-                    },
-                    shape = RoundedCornerShape(5.dp),
+                Box(
                     modifier = Modifier
-                        .height(50.dp),
-                    border = BorderStroke(width = 5.dp, color = Color.Black)
+                        .fillMaxWidth()
+                        .weight(1f), contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "choose a file")
+                    Text(
+                        text = if (isGenerationEnabled) "Генерация QR-кодов" else "Загрузите файл для доступа к генерации QR-кодов",
+                        fontSize = 30.sp,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
-                Row(modifier = Modifier.fillMaxWidth()) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.7f),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Button(
                         onClick = {
                             generationViewModel.generateQrCodeWithPublicKey(dimension = qrCodeDimension)
@@ -134,15 +140,15 @@ fun GenerationScreen(navigationController: NavController) {
                             hasQrCodeGenerated = true
                         },
                         enabled = isGenerationEnabled,
-                        shape = RoundedCornerShape(5.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
-                            .height(50.dp)
-                            .weight(0.5f),
+                            .height(60.dp)
+                            .fillMaxWidth(0.7f),
                         border = BorderStroke(width = 5.dp, color = Color.Black)
                     ) {
-                        Text(text = "public key", fontSize = 20.sp)
+                        Text(text = "публичный ключ", fontSize = 20.sp)
                     }
-
+                    Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = {
                             generationViewModel.generateQrCodeWithSignature(
@@ -154,17 +160,40 @@ fun GenerationScreen(navigationController: NavController) {
                             hasQrCodeGenerated = true
                         },
                         enabled = isGenerationEnabled,
-                        shape = RoundedCornerShape(5.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
-                            .height(50.dp)
-                            .weight(0.5f),
+                            .height(60.dp)
+                            .fillMaxWidth(0.7f),
                         border = BorderStroke(width = 5.dp, color = Color.Black)
                     ) {
-                        Text(text = "signature", fontSize = 20.sp)
+                        Text(text = "электронная подпись", fontSize = 20.sp)
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f), contentAlignment = Alignment.Center
+                ) {
+                    Button(
+                        onClick = {
+                            chooseFileLauncher.launch("text/plain")
+                        },
+                        shape = RoundedCornerShape(5.dp),
+                        modifier = Modifier
+                            .height(50.dp),
+                        border = BorderStroke(width = 5.dp, color = Color.Black)
+                    ) {
+                        Text(text = "выберите файл")
                     }
                 }
             } else {
                 if (publicKeyQrCode != null) {
+                    Text(
+                        text = "QR-код с публичным ключом",
+                        fontSize = 30.sp,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
                     Icon(
                         bitmap = publicKeyQrCode!!,
                         contentDescription = "qr code with public key inside",
@@ -172,6 +201,12 @@ fun GenerationScreen(navigationController: NavController) {
                     )
                 }
                 if (signatureQrCode != null) {
+                    Text(
+                        text = "QR-код с электронной подписью",
+                        fontSize = 30.sp,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
                     Icon(
                         bitmap = signatureQrCode!!,
                         contentDescription = "qr code with digital signature inside",
@@ -190,7 +225,7 @@ fun GenerationScreen(navigationController: NavController) {
                         .fillMaxWidth(0.5f),
                     border = BorderStroke(width = 5.dp, color = Color.Black)
                 ) {
-                    Text(text = "back", fontSize = 20.sp)
+                    Text(text = "назад", fontSize = 20.sp)
                 }
             }
         }

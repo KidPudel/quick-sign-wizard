@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.iggydev.quicksignwizard.common.Constants
 import com.iggydev.quicksignwizard.data.utilities.QrCodeAnalyzer
 import com.iggydev.quicksignwizard.presentation.Screens
 import kotlinx.coroutines.launch
@@ -96,8 +97,6 @@ fun ScannerScreen(navigationController: NavController) {
     val chooseFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { receivedPath ->
-            println(receivedPath?.path)
-
             val contentResolver = context.contentResolver
 
             val fileInputStream = contentResolver.openInputStream(receivedPath!!)
@@ -175,10 +174,8 @@ fun ScannerScreen(navigationController: NavController) {
                                         val byteArrayData =
                                             Base64.decode(qrCodeData, Base64.NO_WRAP)
 
-                                        println("scanned data: ${scannedData.joinToString(", ")}")
-                                        println("current data: $qrCodeData")
                                         if (!scannedData.contains(qrCodeData)) {
-                                            if (!keyStore.isCertificateEntry("bubblegum1.0.1")) {
+                                            if (!keyStore.isCertificateEntry(Constants.recipientAlias)) {
                                                 val certificateFactory =
                                                     CertificateFactory.getInstance("X.509")
                                                 val inputStream =
@@ -189,7 +186,7 @@ fun ScannerScreen(navigationController: NavController) {
                                                     )
 
                                                 keyStore.setCertificateEntry(
-                                                    "bubblegum1.0.1",
+                                                    Constants.recipientAlias,
                                                     certificate
                                                 )
                                                 scannerCoroutineScope.launch {
@@ -197,7 +194,7 @@ fun ScannerScreen(navigationController: NavController) {
                                                 }
                                             } else {
                                                 val publicKey =
-                                                    keyStore.getCertificate("bubblegum1.0.1").publicKey
+                                                    keyStore.getCertificate(Constants.recipientAlias).publicKey
 
                                                 // calculate hash value
                                                 val digest = MessageDigest.getInstance("SHA-256")
@@ -217,7 +214,7 @@ fun ScannerScreen(navigationController: NavController) {
                                                 }
 
                                                 // after usage of public key, delete it (temporary)
-                                                keyStore.deleteEntry("bubblegum1.0.1")
+                                                keyStore.deleteEntry(Constants.recipientAlias)
                                             }
                                             scannedData.add(qrCodeData)
                                         }
@@ -265,10 +262,10 @@ fun ScannerScreen(navigationController: NavController) {
                         shape = RoundedCornerShape(5.dp),
                         border = BorderStroke(width = 5.dp, color = Color.Black)
                     ) {
-                        Text(text = "return to generation")
+                        Text(text = "К генерации")
                     }
                 }, title = {
-                    Text(text = "To scan, please give a permission for the camera")
+                    Text(text = "Для сканирования дайте разрешение для камеры")
                 })
             }
 

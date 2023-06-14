@@ -83,17 +83,13 @@ class DigitalSignature {
     }
 
     fun generateQrCodeCertificate(dimension: Int): ImageBitmap? {
-
         // generate an qr code bitmap and nest
         val qrBitmap: Bitmap?
         var qrImageBitmap: ImageBitmap? = null
 
-
         if (!keyStore.isKeyEntry(Constants.signerAlias)) {
             generateKeyPair()
         }
-
-
         // get certificate key
         val certificate = keyStore.getCertificate(Constants.signerAlias)
 
